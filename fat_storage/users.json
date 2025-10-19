@@ -1,0 +1,17 @@
+{
+  "users": [
+    {
+      "username": "admin",
+      "password": "admin",
+      "owner_of": [],
+      "is_admin": true
+    },
+    {
+      "username": "Usuario",
+      "password": "Usuario123",
+      "owner_of": [],
+      "is_admin": false
+    }
+  ],
+  "permissions": {}
+}
