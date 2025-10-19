@@ -7,7 +7,7 @@ usuario_actual = None
 
 while True:
     if not usuario_actual:
-        print("\n--- LOGIN ---")
+        print("\n===== INICIO DE SESIÓN =====")
         u = input("Usuario: ").strip()
         p = input("Contraseña: ").strip()
         if check_credentials(u, p):
@@ -17,21 +17,32 @@ while True:
             print("Credenciales incorrectas")
         continue
 
-    print(f"\n[{usuario_actual}] Comandos:")
-    print("crear, listar, papelera, abrir, modificar, eliminar, recuperar, permisos, crearuser, logout, salir")
+    print(f"\n=== MENÚ PRINCIPAL ({usuario_actual}) ===")
+    print("1. Crear archivo")
+    print("2. Listar archivos")
+    print("3. Ver papelera")
+    print("4. Abrir archivo")
+    print("5. Modificar archivo")
+    print("6. Eliminar archivo (mover a papelera)")
+    print("7. Recuperar archivo")
+    print("8. Asignar permisos")
+    print("9. Crear usuario (solo admin)")
+    print("10. Cerrar sesión")
+    print("0. Salir del programa")
 
-    cmd = input(">> ").strip().lower()
+    opcion = input("\nElige una opción: ").strip()
 
-    if cmd == "salir":
+    if opcion == "0":
+        print("Saliendo...")
         break
 
-    if cmd == "logout":
+    if opcion == "10":
         usuario_actual = None
         continue
 
-    if cmd == "crear":
-        nombre = input("Nombre archivo: ").strip()
-        print("Contenido (finaliza con .END):")
+    if opcion == "1":
+        nombre = input("Nombre del archivo: ").strip()
+        print("Escribe el contenido (finaliza con .END):")
         lineas = []
         while True:
             t = input()
@@ -42,7 +53,7 @@ while True:
         ok, msg = crear_archivo(nombre, texto, usuario_actual)
         print(msg)
 
-    elif cmd == "listar":
+    elif opcion == "2":
         archivos = listar(True)
         if not archivos:
             print("No hay archivos.")
@@ -50,7 +61,7 @@ while True:
             for a in archivos:
                 print(f"- {a['nombre']} (owner: {a['owner']})")
 
-    elif cmd == "papelera":
+    elif opcion == "3":
         pap = listar(False)
         papel = [a for a in pap if a["papelera"]]
         if not papel:
@@ -59,31 +70,31 @@ while True:
             for a in papel:
                 print(f"- {a['nombre']} eliminado: {a['fecha_eliminacion']}")
 
-    elif cmd == "abrir":
-        nombre = input("Archivo: ").strip()
+    elif opcion == "4":
+        nombre = input("Nombre del archivo: ").strip()
         fat = cargar_fat(nombre)
         if not fat:
-            print("no existe")
+            print("Archivo no existe")
             continue
         from users import user_has_read
         if not user_has_read(usuario_actual, nombre, fat["owner"]):
-            print("sin permiso de lectura")
+            print("No tienes permiso de lectura")
             continue
         if fat["papelera"]:
-            print("archivo en papelera")
+            print("El archivo está en la papelera")
             continue
         print("\n--- CONTENIDO ---")
         print(leer_contenido(fat))
 
-    elif cmd == "modificar":
-        nombre = input("Archivo: ").strip()
+    elif opcion == "5":
+        nombre = input("Archivo a modificar: ").strip()
         from users import user_has_write
         fat = cargar_fat(nombre)
         if not fat:
-            print("no existe")
+            print("No existe ese archivo")
             continue
         if not user_has_write(usuario_actual, nombre, fat["owner"]):
-            print("sin permiso de escritura")
+            print("No tienes permiso de escritura")
             continue
         print("Nuevo contenido (.END para terminar):")
         lineas = []
@@ -96,45 +107,45 @@ while True:
         ok, msg = modificar_archivo(nombre, texto, usuario_actual)
         print(msg)
 
-    elif cmd == "eliminar":
-        nombre = input("Archivo: ").strip()
+    elif opcion == "6":
+        nombre = input("Archivo a eliminar: ").strip()
         ok, msg = eliminar_logico(nombre, usuario_actual)
         print(msg)
 
-    elif cmd == "recuperar":
-        nombre = input("Archivo: ").strip()
+    elif opcion == "7":
+        nombre = input("Archivo a recuperar: ").strip()
         ok, msg = recuperar(nombre, usuario_actual)
         print(msg)
 
-    elif cmd == "crearuser":
+    elif opcion == "8":
+        nombre = input("Archivo: ").strip()
+        fat = cargar_fat(nombre)
+        if not fat:
+            print("No existe")
+            continue
+        if fat["owner"] != usuario_actual:
+            print("Solo el dueño puede asignar permisos")
+            continue
+        t = input("Usuario destino: ").strip()
+        act = input("¿Revocar permiso? (s/n): ").strip().lower()
+        if act == "s":
+            ok, msg = assign_permission(nombre, usuario_actual, t, revoke=True)
+            print(msg)
+        else:
+            r = input("Dar permiso de lectura? (s/n): ").strip().lower()
+            w = input("Dar permiso de escritura? (s/n): ").strip().lower()
+            ok, msg = assign_permission(nombre, usuario_actual, t, read=(r == "s"), write=(w == "s"))
+            print(msg)
+
+    elif opcion == "9":
         u = find_user(usuario_actual)
         if not u or not u.get("is_admin"):
-            print("solo admin puede crear usuarios")
+            print("Solo el administrador puede crear usuarios")
             continue
         n = input("Nuevo usuario: ").strip()
         p = input("Contraseña: ").strip()
         ok, msg = create_user(n, p, usuario_actual)
         print(msg)
 
-    elif cmd == "permisos":
-        nombre = input("Archivo: ").strip()
-        fat = cargar_fat(nombre)
-        if not fat:
-            print("no existe")
-            continue
-        if fat["owner"] != usuario_actual:
-            print("solo el owner puede asignar permisos")
-            continue
-        t = input("Usuario destino: ").strip()
-        act = input("¿Revocar? (s/n): ").strip().lower()
-        if act == "s":
-            ok, msg = assign_permission(nombre, usuario_actual, t, revoke=True)
-            print(msg)
-        else:
-            r = input("Lectura? (s/n): ").strip().lower()
-            w = input("Escritura? (s/n): ").strip().lower()
-            ok, msg = assign_permission(nombre, usuario_actual, t, read=(r=="s"), write=(w=="s"))
-            print(msg)
-
     else:
-        print("Comando no reconocido")
+        print("Opción inválida, intenta de nuevo.")
