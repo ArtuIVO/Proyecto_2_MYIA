@@ -21,14 +21,63 @@ def split_blocks(texto):
     return bloques
 
 def vaciar_papelera():
-    if not os.path.exists("fat_storage"): return
-    for f in os.listdir("fat_storage"):
-        if f.endswith(".json"):
-            path = os.path.join("fat_storage", f)
-            with open(path, "r") as file:
-                data = json.load(file)
-            if data.get("papelera"):
-                os.remove(path)
+    ensure_dirs()
+    fats = os.listdir(FAT_DIR)
+    for f in fats:
+        if not f.endswith(".fat.json"):
+            continue
+        ruta_fat = os.path.join(FAT_DIR, f)
+        try:
+            with open(ruta_fat, "r", encoding="utf-8") as arch:
+                data = json.load(arch)
+        except:
+            continue
+
+        if data.get("papelera"):
+            bloque_actual = data.get("ruta_inicial")
+            while bloque_actual and os.path.exists(bloque_actual):
+                try:
+                    with open(bloque_actual, "r", encoding="utf-8") as fb:
+                        bloque_data = json.load(fb)
+                    siguiente = bloque_data.get("siguiente_archivo")
+                    os.remove(bloque_actual)
+                    bloque_actual = siguiente
+                except:
+                    break
+
+            try:
+                os.remove(ruta_fat)
+            except:
+                pass
+    fat_path = "fat_table.json"
+    if not os.path.exists(fat_path):
+        return
+
+    with open(fat_path, "r") as f:
+        try:
+            fat_data = json.load(f)
+        except:
+            fat_data = []
+
+    nuevos_archivos = []
+
+    for archivo in fat_data:
+        if archivo.get("papelera") is True:
+            bloque_actual = archivo.get("ruta_inicial")
+            while bloque_actual and os.path.exists(bloque_actual):
+                try:
+                    with open(bloque_actual, "r") as fb:
+                        bloque_data = json.load(fb)
+                    siguiente = bloque_data.get("siguiente")
+                    os.remove(bloque_actual)
+                    bloque_actual = siguiente
+                except Exception as e:
+                    break
+        else:
+            nuevos_archivos.append(archivo)
+
+    with open(fat_path, "w") as f:
+        json.dump(nuevos_archivos, f, indent=4)
 
 def fat_path(nombre):
     return os.path.join(FAT_DIR, nombre.replace("/", "_") + ".fat.json")

@@ -57,7 +57,8 @@ def refrescar_listas():
     lista_archivos.delete(0, tk.END)
     lista_papelera.delete(0, tk.END)
     for a in listar(True):
-        lista_archivos.insert(tk.END, a["nombre"])
+        if not a["papelera"]:
+            lista_archivos.insert(tk.END, a["nombre"])
     for a in listar(False):
         if a["papelera"]:
             lista_papelera.insert(tk.END, a["nombre"])
@@ -167,8 +168,11 @@ def recuperar_archivo():
     refrescar_listas()
 
 def vaciar_papelera_accion():
-    if messagebox.askyesno("Confirmar", "¿Deseas vaciar la papelera permanentemente?"):
-        vaciar_papelera()
+    if not usuario_actual:
+        return
+    confirmar = messagebox.askyesno("Confirmar", "¿Deseas vaciar la papelera permanentemente?")
+    if confirmar:
+        vaciar_papelera()  
         refrescar_listas()
         messagebox.showinfo("Hecho", "Papelera vaciada correctamente")
 
@@ -204,7 +208,7 @@ def crear_usuario():
     ok, msg = create_user(nuevo, clave, usuario_actual)
     messagebox.showinfo("Resultado", msg)
 
-# ----- LOGIN -----
+
 tk.Label(frame_login, text="Simulador FAT", font=("Arial", 20, "bold"), bg="#2b2b2b", fg="#ffffff").pack(pady=20)
 tk.Label(frame_login, text="Usuario:", bg="#2b2b2b", fg="#ffffff").pack()
 entrada_usuario = tk.Entry(frame_login, width=30)
@@ -215,7 +219,7 @@ entrada_pass.pack(pady=5)
 tk.Button(frame_login, text="Iniciar sesión", bg="#4a90e2", fg="white", width=20, command=login).pack(pady=10)
 tk.Button(frame_login, text="Salir del sistema", bg="#a94442", fg="white", width=20, command=salir).pack()
 
-# ----- MAIN -----
+
 label_usuario = tk.Label(frame_main, text="", bg="#2b2b2b", fg="#ffffff", font=("Arial", 12))
 label_usuario.pack(pady=10)
 tk.Button(frame_main, text="Cerrar sesión", bg="#777", fg="white", width=20, command=logout).pack(pady=5)
