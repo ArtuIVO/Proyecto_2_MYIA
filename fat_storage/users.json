@@ -3,7 +3,10 @@
     {
       "username": "admin",
       "password": "admin",
-      "owner_of": [],
+      "owner_of": [
+        "nose",
+        "nose "
+      ],
       "is_admin": true
     },
     {
