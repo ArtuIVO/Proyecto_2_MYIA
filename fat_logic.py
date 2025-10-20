@@ -20,6 +20,16 @@ def split_blocks(texto):
         i += MAX_BLOCK_SIZE
     return bloques
 
+def vaciar_papelera():
+    if not os.path.exists("fat_storage"): return
+    for f in os.listdir("fat_storage"):
+        if f.endswith(".json"):
+            path = os.path.join("fat_storage", f)
+            with open(path, "r") as file:
+                data = json.load(file)
+            if data.get("papelera"):
+                os.remove(path)
+
 def fat_path(nombre):
     return os.path.join(FAT_DIR, nombre.replace("/", "_") + ".fat.json")
 
