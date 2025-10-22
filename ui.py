@@ -1,7 +1,7 @@
 import tkinter as tk
 from tkinter import simpledialog, messagebox, scrolledtext
 from fat_logic import crear_archivo, listar, leer_contenido, modificar_archivo, eliminar_logico, recuperar, vaciar_papelera
-from users import validar_usuario, find_user, crear_usuario, asignar_permiso
+from users import validar_usuario, find_user, crear_usuario, asignar_permiso, load_users
 
 usuario_actual = None
 
@@ -14,23 +14,37 @@ def refrescar_listas():
         if a["papelera"]:
             lista_papelera.insert(tk.END, a["nombre"])
 
+def mostrar_usuarios():
+    data = load_users()
+    win = tk.Toplevel(ventana)
+    win.title("Usuarios y Roles")
+    win.geometry("400x300")
+    lista = tk.Listbox(win, width=50, height=15, bg="#303030", fg="white", font=("Arial", 11))
+    lista.pack(padx=10, pady=10)
+    for u in data["users"]:
+        rol = "Administrador" if u.get("is_admin", False) else "Usuario"
+        lista.insert(tk.END, f"{u['username']} - {rol}")
+
 def actualizar_visibilidad_botones():
-    global boton_crear_usuario, boton_asignar_permiso, boton_recuperar
+    global boton_crear_usuario, boton_asignar_permiso, boton_recuperar, boton_mostrar_usuarios
     if not usuario_actual:
         boton_crear_usuario.grid_remove()
         boton_asignar_permiso.grid_remove()
         boton_recuperar.grid_remove()
+        boton_mostrar_usuarios.grid_remove()
         return
     u = find_user(usuario_actual)
-    es_admin = u.get("is_admin", False) # type: ignore
+    es_admin = u.get("is_admin", False)  # type: ignore
     if es_admin:
         boton_crear_usuario.grid()
         boton_asignar_permiso.grid()
         boton_recuperar.grid()
+        boton_mostrar_usuarios.grid()
     else:
         boton_crear_usuario.grid_remove()
         boton_asignar_permiso.grid_remove()
         boton_recuperar.grid_remove()
+        boton_mostrar_usuarios.grid_remove()
 
 def login_usuario():
     global usuario_actual
@@ -110,7 +124,6 @@ def modificar_archivo_ui():
     txt.pack(padx=10, pady=10)
     def guardar():
         nuevo = txt.get("1.0", tk.END).strip()
-        from fat_logic import modificar_archivo
         ok, msg = modificar_archivo(sel, nuevo, usuario_actual)
         messagebox.showinfo("Resultado", msg)
         win.destroy()
@@ -207,8 +220,10 @@ boton_crear_usuario = tk.Button(frame_der, text="Crear Usuario", command=crear_u
 boton_crear_usuario.grid(row=7, column=0, pady=5)
 boton_asignar_permiso = tk.Button(frame_der, text="Asignar Permisos", command=asignar_permiso_ui, width=25, height=2)
 boton_asignar_permiso.grid(row=8, column=0, pady=5)
+boton_mostrar_usuarios = tk.Button(frame_der, text="Mostrar Usuarios", command=mostrar_usuarios, width=25, height=2)
+boton_mostrar_usuarios.grid(row=9, column=0, pady=5)
 boton_salir = tk.Button(frame_der, text="Salir", command=salir, width=25, height=2, bg="#a83232", fg="white")
-boton_salir.grid(row=9, column=0, pady=10)
+boton_salir.grid(row=10, column=0, pady=10)
 
 actualizar_visibilidad_botones()
 refrescar_listas()
