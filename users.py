@@ -5,12 +5,7 @@ USERS_FILE = "fat_storage/users.json"
 def init_users():
     os.makedirs("fat_storage", exist_ok=True)
     if not os.path.exists(USERS_FILE):
-        admin = {
-            "username": "admin",
-            "password": "admin",
-            "owner_of": [],
-            "is_admin": True
-        }
+        admin = {"username": "admin", "password": "admin", "owner_of": [], "is_admin": True}
         data = {"users": [admin]}
         with open(USERS_FILE, "w", encoding="utf-8") as f:
             json.dump(data, f, indent=2, ensure_ascii=False)
@@ -40,7 +35,7 @@ def create_user(username, password, creator="admin"):
     if not username or not password:
         return False, "no se permiten campos vacíos"
     data = load_users()
-    if find_user(username):
+    if any(u["username"] == username for u in data["users"]):
         return False, "usuario ya existe"
     if creator != "admin":
         creador_data = find_user(creator)
@@ -53,16 +48,15 @@ def create_user(username, password, creator="admin"):
 
 def toggle_admin_status(admin_username, target_username, make_admin):
     data = load_users()
-    admin = find_user(admin_username)
+    admin = next((u for u in data["users"] if u["username"] == admin_username), None)
     if not admin or not admin.get("is_admin"):
         return False, "solo el administrador puede cambiar roles"
-    target = find_user(target_username)
-    if not target:
-        return False, "usuario no encontrado"
-    target["is_admin"] = bool(make_admin)
-    save_users(data)
-    return True, "rol actualizado"
-
+    for u in data["users"]:
+        if u["username"] == target_username:
+            u["is_admin"] = bool(make_admin)
+            save_users(data)
+            return True, "rol actualizado"
+    return False, "usuario no encontrado"
 
 def validar_usuario(username, password):
     return check_credentials(username, password)
@@ -72,4 +66,3 @@ def crear_usuario(nombre, clave):
 
 def asignar_permiso(owner, target, admin_state):
     return toggle_admin_status(owner, target, admin_state)
-

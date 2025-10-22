@@ -24,6 +24,12 @@
         "LOO"
       ],
       "is_admin": false
+    },
+    {
+      "username": "Prueba",
+      "password": "12345",
+      "owner_of": [],
+      "is_admin": true
     }
   ],
   "permissions": {

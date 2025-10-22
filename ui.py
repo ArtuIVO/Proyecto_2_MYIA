@@ -16,10 +16,13 @@ def refrescar_listas():
 
 def actualizar_visibilidad_botones():
     global boton_crear_usuario, boton_asignar_permiso, boton_recuperar
-    u = find_user(usuario_actual)
-    if not u:
+    if not usuario_actual:
+        boton_crear_usuario.grid_remove()
+        boton_asignar_permiso.grid_remove()
+        boton_recuperar.grid_remove()
         return
-    es_admin = u.get("is_admin", False)
+    u = find_user(usuario_actual)
+    es_admin = u.get("is_admin", False) # type: ignore
     if es_admin:
         boton_crear_usuario.grid()
         boton_asignar_permiso.grid()
@@ -107,6 +110,7 @@ def modificar_archivo_ui():
     txt.pack(padx=10, pady=10)
     def guardar():
         nuevo = txt.get("1.0", tk.END).strip()
+        from fat_logic import modificar_archivo
         ok, msg = modificar_archivo(sel, nuevo, usuario_actual)
         messagebox.showinfo("Resultado", msg)
         win.destroy()
@@ -162,9 +166,8 @@ def asignar_permiso_ui():
     es_admin = respuesta.lower() == "s"
     ok, msg = asignar_permiso(usuario_actual, usuario, es_admin)
     messagebox.showinfo("Resultado", msg)
+    refrescar_listas()
     actualizar_visibilidad_botones()
-
-
 
 def salir():
     ventana.destroy()
@@ -207,5 +210,6 @@ boton_asignar_permiso.grid(row=8, column=0, pady=5)
 boton_salir = tk.Button(frame_der, text="Salir", command=salir, width=25, height=2, bg="#a83232", fg="white")
 boton_salir.grid(row=9, column=0, pady=10)
 
+actualizar_visibilidad_botones()
 refrescar_listas()
 ventana.mainloop()
