@@ -11,7 +11,7 @@ def init_users():
             "owner_of": [],
             "is_admin": True
         }
-        data = {"users": [admin], "permissions": {}}
+        data = {"users": [admin]}
         with open(USERS_FILE, "w", encoding="utf-8") as f:
             json.dump(data, f, indent=2, ensure_ascii=False)
 
@@ -36,40 +36,40 @@ def check_credentials(username, password):
         return False
     return u["password"] == password
 
-def create_user(username, password, creator):
+def create_user(username, password, creator="admin"):
+    if not username or not password:
+        return False, "no se permiten campos vacíos"
     data = load_users()
     if find_user(username):
         return False, "usuario ya existe"
+    if creator != "admin":
+        creador_data = find_user(creator)
+        if not creador_data or not creador_data.get("is_admin"):
+            return False, "solo el admin puede crear usuarios"
     user = {"username": username, "password": password, "owner_of": [], "is_admin": False}
     data["users"].append(user)
     save_users(data)
     return True, "usuario creado"
 
-def assign_permission(file_name, owner_username, target_username, read=False, write=False, revoke=False):
+def toggle_admin_status(admin_username, target_username, make_admin):
     data = load_users()
-    perms = data.get("permissions", {})
-    if revoke:
-        if file_name in perms and target_username in perms[file_name]:
-            perms[file_name].pop(target_username, None)
-    else:
-        perms.setdefault(file_name, {})
-        perms[file_name][target_username] = {"read": bool(read), "write": bool(write)}
-    data["permissions"] = perms
+    admin = find_user(admin_username)
+    if not admin or not admin.get("is_admin"):
+        return False, "solo el administrador puede cambiar roles"
+    target = find_user(target_username)
+    if not target:
+        return False, "usuario no encontrado"
+    target["is_admin"] = bool(make_admin)
     save_users(data)
-    return True, "permiso actualizado"
+    return True, "rol actualizado"
 
-def get_permissions_for(file_name):
-    data = load_users()
-    return data.get("permissions", {}).get(file_name, {})
 
-def user_has_read(user, file_name, owner):
-    if user == owner:
-        return True
-    perms = get_permissions_for(file_name)
-    return perms.get(user, {}).get("read", False)
+def validar_usuario(username, password):
+    return check_credentials(username, password)
 
-def user_has_write(user, file_name, owner):
-    if user == owner:
-        return True
-    perms = get_permissions_for(file_name)
-    return perms.get(user, {}).get("write", False)
+def crear_usuario(nombre, clave):
+    return create_user(nombre, clave, creator="admin")
+
+def asignar_permiso(owner, target, admin_state):
+    return toggle_admin_status(owner, target, admin_state)
+

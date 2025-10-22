@@ -1,7 +1,7 @@
 import os, json
 from datetime import datetime
 from blocks import create_block, read_block, delete_block_file, MAX_BLOCK_SIZE
-from users import user_has_read, user_has_write, load_users, save_users
+from users import load_users, save_users
 
 FAT_DIR = "fat_storage/fats"
 
@@ -32,7 +32,6 @@ def vaciar_papelera():
                 data = json.load(arch)
         except:
             continue
-
         if data.get("papelera"):
             bloque_actual = data.get("ruta_inicial")
             while bloque_actual and os.path.exists(bloque_actual):
@@ -44,40 +43,10 @@ def vaciar_papelera():
                     bloque_actual = siguiente
                 except:
                     break
-
             try:
                 os.remove(ruta_fat)
             except:
                 pass
-    fat_path = "fat_table.json"
-    if not os.path.exists(fat_path):
-        return
-
-    with open(fat_path, "r") as f:
-        try:
-            fat_data = json.load(f)
-        except:
-            fat_data = []
-
-    nuevos_archivos = []
-
-    for archivo in fat_data:
-        if archivo.get("papelera") is True:
-            bloque_actual = archivo.get("ruta_inicial")
-            while bloque_actual and os.path.exists(bloque_actual):
-                try:
-                    with open(bloque_actual, "r") as fb:
-                        bloque_data = json.load(fb)
-                    siguiente = bloque_data.get("siguiente")
-                    os.remove(bloque_actual)
-                    bloque_actual = siguiente
-                except Exception as e:
-                    break
-        else:
-            nuevos_archivos.append(archivo)
-
-    with open(fat_path, "w") as f:
-        json.dump(nuevos_archivos, f, indent=4)
 
 def fat_path(nombre):
     return os.path.join(FAT_DIR, nombre.replace("/", "_") + ".fat.json")
@@ -140,8 +109,8 @@ def modificar_archivo(nombre, nuevo_contenido, user):
     fat = cargar_fat(nombre)
     if not fat:
         return False, "no existe"
-    if not user_has_write(user, nombre, fat["owner"]):
-        return False, "sin permiso"
+    if fat["owner"] != user:
+        return False, "solo el owner puede modificar"
     viejo = fat["ruta_inicial"]
     bloques = split_blocks(nuevo_contenido)
     anterior = None
@@ -176,7 +145,7 @@ def eliminar_logico(nombre, user):
     if not fat:
         return False, "no existe"
     if fat["owner"] != user:
-        return False, "solo el owner puede"
+        return False, "solo el owner puede eliminar"
     fat["papelera"] = True
     fat["fecha_eliminacion"] = now()
     guardar_fat(nombre, fat)
@@ -187,7 +156,7 @@ def recuperar(nombre, user):
     if not fat:
         return False, "no existe"
     if fat["owner"] != user:
-        return False, "solo el owner puede"
+        return False, "solo el owner puede recuperar"
     fat["papelera"] = False
     fat["fecha_modificacion"] = now()
     fat["fecha_eliminacion"] = None

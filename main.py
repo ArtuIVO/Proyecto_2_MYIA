@@ -1,5 +1,5 @@
 from fat_logic import crear_archivo, listar, leer_contenido, modificar_archivo, eliminar_logico, recuperar, cargar_fat, vaciar_papelera
-from users import init_users, check_credentials, create_user, assign_permission, find_user, user_has_read, user_has_write
+from users import init_users, check_credentials, create_user, toggle_admin_status, find_user
 
 init_users()
 usuario_actual = None
@@ -28,7 +28,7 @@ while True:
     print("6. Mostrar papelera")
     print("7. Recuperar archivo desde papelera")
     print("8. Vaciar papelera")
-    print("9. Asignar permisos")
+    print("9. Asignar rol (admin/usuario)")
     print("10. Crear usuario (solo admin)")
     print("11. Cerrar sesión")
     print("12. Salir del sistema")
@@ -66,9 +66,6 @@ while True:
         if fat["papelera"]:
             print("Error: El archivo está en la papelera.")
             continue
-        if not user_has_read(usuario_actual, nombre, fat["owner"]):
-            print("Error: No tienes permiso de lectura.")
-            continue
         contenido = leer_contenido(fat)
         print("\nContenido del archivo:")
         print(contenido)
@@ -78,9 +75,6 @@ while True:
         fat = cargar_fat(nombre)
         if not fat:
             print("Error: El archivo no existe.")
-            continue
-        if not user_has_write(usuario_actual, nombre, fat["owner"]):
-            print("Error: No tienes permiso de escritura.")
             continue
         nuevo = input("Nuevo contenido: ").strip()
         if not nuevo:
@@ -105,6 +99,10 @@ while True:
                 print(f"- {a['nombre']} (Owner: {a['owner']})")
 
     elif opcion == "7":
+        u = find_user(usuario_actual)
+        if not u or not u.get("is_admin"):
+            print("Error: Solo el administrador puede recuperar archivos.")
+            continue
         nombre = input("Archivo a recuperar: ").strip()
         ok, msg = recuperar(nombre, usuario_actual)
         print(msg)
@@ -118,21 +116,21 @@ while True:
             print("Operación cancelada.")
 
     elif opcion == "9":
-        nombre = input("Archivo al que asignar permisos: ").strip()
-        fat = cargar_fat(nombre)
-        if not fat:
-            print("Error: El archivo no existe.")
+        u = find_user(usuario_actual)
+        if not u or not u.get("is_admin"):
+            print("Error: Solo el administrador puede cambiar roles.")
             continue
-        if fat["owner"] != usuario_actual:
-            print("Error: Solo el propietario puede asignar permisos.")
+        usuario_target = input("Usuario a modificar: ").strip()
+        target = find_user(usuario_target)
+        if not target:
+            print("Error: Usuario no encontrado.")
             continue
-        usuario_destino = input("Usuario destino: ").strip()
-        if not usuario_destino:
-            print("Error: Usuario inválido.")
+        resp = input("Asignar admin? (s/n): ").strip().lower()
+        if resp not in ("s", "n"):
+            print("Error: respuesta inválida")
             continue
-        r = input("¿Dar permiso de lectura? (s/n): ").strip().lower() == "s"
-        w = input("¿Dar permiso de escritura? (s/n): ").strip().lower() == "s"
-        ok, msg = assign_permission(nombre, usuario_actual, usuario_destino, read=r, write=w)
+        make_admin = resp == "s"
+        ok, msg = toggle_admin_status(usuario_actual, usuario_target, make_admin)
         print(msg)
 
     elif opcion == "10":

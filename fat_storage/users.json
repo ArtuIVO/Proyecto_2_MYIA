@@ -5,7 +5,8 @@
       "password": "admin",
       "owner_of": [
         "nose",
-        "nose "
+        "nose ",
+        "Manejos"
       ],
       "is_admin": true
     },
@@ -14,7 +15,23 @@
       "password": "Usuario123",
       "owner_of": [],
       "is_admin": false
+    },
+    {
+      "username": "Sujeto de prueba",
+      "password": "1234",
+      "owner_of": [
+        "xd",
+        "LOO"
+      ],
+      "is_admin": false
     }
   ],
-  "permissions": {}
+  "permissions": {
+    "Sujeto de prueba": {
+      "Sujeto de prueba": {
+        "read": true,
+        "write": false
+      }
+    }
+  }
 }

@@ -1,257 +1,211 @@
 import tkinter as tk
-from tkinter import messagebox, simpledialog, scrolledtext, ttk
-from fat_logic import crear_archivo, listar, leer_contenido, modificar_archivo, eliminar_logico, recuperar, cargar_fat, vaciar_papelera
-from users import init_users, check_credentials, create_user, assign_permission, find_user, user_has_read, user_has_write
+from tkinter import simpledialog, messagebox, scrolledtext
+from fat_logic import crear_archivo, listar, leer_contenido, modificar_archivo, eliminar_logico, recuperar, vaciar_papelera
+from users import validar_usuario, find_user, crear_usuario, asignar_permiso
 
-init_users()
 usuario_actual = None
-
-ventana = tk.Tk()
-ventana.title("Simulador FAT - Sistema de Archivos")
-ventana.geometry("700x550")
-ventana.config(bg="#2b2b2b")
-
-style = ttk.Style()
-style.configure("TNotebook", background="#2b2b2b", borderwidth=0)
-style.configure("TNotebook.Tab", background="#444", foreground="white", padding=10)
-style.map("TNotebook.Tab", background=[("selected", "#4a90e2")])
-
-frame_login = tk.Frame(ventana, bg="#2b2b2b")
-frame_main = tk.Frame(ventana, bg="#2b2b2b")
-frame_login.pack(fill="both", expand=True)
-
-def mostrar_login():
-    frame_main.pack_forget()
-    frame_login.pack(fill="both", expand=True)
-
-def mostrar_main():
-    frame_login.pack_forget()
-    frame_main.pack(fill="both", expand=True)
-    refrescar_listas()
-
-def login():
-    global usuario_actual
-    u = entrada_usuario.get().strip()
-    p = entrada_pass.get().strip()
-    if not u or not p:
-        messagebox.showerror("Error", "Usuario o contraseña vacíos.")
-        return
-    if check_credentials(u, p):
-        usuario_actual = u
-        label_usuario.config(text=f"Usuario: {usuario_actual}")
-        mostrar_main()
-    else:
-        messagebox.showerror("Error", "Credenciales incorrectas")
-
-def logout():
-    global usuario_actual
-    usuario_actual = None
-    entrada_usuario.delete(0, tk.END)
-    entrada_pass.delete(0, tk.END)
-    mostrar_login()
-
-def salir():
-    ventana.destroy()
 
 def refrescar_listas():
     lista_archivos.delete(0, tk.END)
     lista_papelera.delete(0, tk.END)
     for a in listar(True):
-        if not a["papelera"]:
-            lista_archivos.insert(tk.END, a["nombre"])
+        lista_archivos.insert(tk.END, a["nombre"])
     for a in listar(False):
         if a["papelera"]:
             lista_papelera.insert(tk.END, a["nombre"])
 
-def crear():
-    if not usuario_actual: return
-    nombre = simpledialog.askstring("Nuevo archivo", "Nombre del archivo:")
-    if not nombre or nombre.strip() == "":
-        messagebox.showerror("Error", "El nombre no puede estar vacío.")
+def actualizar_visibilidad_botones():
+    global boton_crear_usuario, boton_asignar_permiso, boton_recuperar
+    u = find_user(usuario_actual)
+    if not u:
         return
+    es_admin = u.get("is_admin", False)
+    if es_admin:
+        boton_crear_usuario.grid()
+        boton_asignar_permiso.grid()
+        boton_recuperar.grid()
+    else:
+        boton_crear_usuario.grid_remove()
+        boton_asignar_permiso.grid_remove()
+        boton_recuperar.grid_remove()
 
-    ventana_texto = tk.Toplevel()
-    ventana_texto.title("Escribir contenido")
-    ventana_texto.geometry("600x400")
-    ventana_texto.config(bg="#1e1e1e")
-
-    area = scrolledtext.ScrolledText(ventana_texto, wrap=tk.WORD, width=70, height=20, bg="#1e1e1e", fg="#eaeaea", insertbackground="white", font=("Consolas", 11))
-    area.pack(padx=10, pady=10)
-
-    def guardar():
-        texto = area.get("1.0", tk.END).strip()
-        if not texto:
-            messagebox.showerror("Error", "El contenido no puede estar vacío.")
-            return
-        ok, msg = crear_archivo(nombre, texto, usuario_actual)
-        messagebox.showinfo("Resultado", msg)
-        ventana_texto.destroy()
+def login_usuario():
+    global usuario_actual
+    nombre = simpledialog.askstring("Login", "Nombre de usuario:")
+    clave = simpledialog.askstring("Login", "Contraseña:", show="*")
+    if not nombre or not clave:
+        messagebox.showerror("Error", "No puede haber campos vacíos")
+        return
+    if validar_usuario(nombre, clave):
+        usuario_actual = nombre
+        messagebox.showinfo("Bienvenido", f"Inicio de sesión como {usuario_actual}")
         refrescar_listas()
+        actualizar_visibilidad_botones()
+    else:
+        messagebox.showerror("Error", "Usuario o contraseña incorrectos")
 
-    tk.Button(ventana_texto, text="Guardar archivo", bg="#4a90e2", fg="white", width=20, command=guardar).pack(pady=10)
+def crear_archivo_ui():
+    if not usuario_actual:
+        messagebox.showerror("Error", "Debe iniciar sesión")
+        return
+    nombre = simpledialog.askstring("Crear archivo", "Nombre del archivo:")
+    if not nombre:
+        messagebox.showerror("Error", "El nombre no puede estar vacío")
+        return
+    win = tk.Toplevel(ventana)
+    win.title("Contenido del archivo")
+    txt = scrolledtext.ScrolledText(win, width=60, height=15, font=("Arial", 11))
+    txt.pack(padx=10, pady=10)
+    def guardar():
+        contenido = txt.get("1.0", tk.END).strip()
+        if not contenido:
+            messagebox.showerror("Error", "El contenido no puede estar vacío")
+            return
+        ok, msg = crear_archivo(nombre, contenido, usuario_actual)
+        messagebox.showinfo("Resultado", msg)
+        win.destroy()
+        refrescar_listas()
+    tk.Button(win, text="Guardar", command=guardar).pack(pady=5)
 
-def abrir():
-    if not usuario_actual: return
-    sel = lista_archivos.curselection()
-    if not sel: return
-    nombre = lista_archivos.get(sel)
-    fat = cargar_fat(nombre)
+def abrir_archivo():
+    if not usuario_actual:
+        messagebox.showerror("Error", "Debe iniciar sesión")
+        return
+    sel = lista_archivos.get(tk.ACTIVE)
+    if not sel:
+        messagebox.showerror("Error", "Seleccione un archivo")
+        return
+    from fat_logic import cargar_fat
+    fat = cargar_fat(sel)
     if not fat:
-        messagebox.showerror("Error", "El archivo no existe")
-        return
-    if fat["papelera"]:
-        messagebox.showwarning("Aviso", "El archivo está en la papelera")
-        return
-    if not user_has_read(usuario_actual, nombre, fat["owner"]):
-        messagebox.showerror("Error", "No tienes permiso de lectura")
         return
     contenido = leer_contenido(fat)
-    ventana_contenido = tk.Toplevel()
-    ventana_contenido.title(nombre)
-    ventana_contenido.config(bg="#1e1e1e")
-    texto = scrolledtext.ScrolledText(ventana_contenido, width=70, height=20, bg="#1e1e1e", fg="#eaeaea", insertbackground="white", font=("Consolas", 11))
-    texto.insert(tk.END, contenido)
-    texto.config(state="disabled")
-    texto.pack(padx=10, pady=10)
-
-def modificar():
-    if not usuario_actual: return
-    sel = lista_archivos.curselection()
-    if not sel: return
-    nombre = lista_archivos.get(sel)
-    fat = cargar_fat(nombre)
-    if not fat:
-        messagebox.showerror("Error", "No existe el archivo")
-        return
-    if not user_has_write(usuario_actual, nombre, fat["owner"]):
-        messagebox.showerror("Error", "No tienes permiso de escritura")
-        return
-
-    contenido_actual = leer_contenido(fat)
-    ventana_edit = tk.Toplevel()
-    ventana_edit.title(f"Editar {nombre}")
-    ventana_edit.geometry("600x400")
-    ventana_edit.config(bg="#1e1e1e")
-
-    area = scrolledtext.ScrolledText(ventana_edit, wrap=tk.WORD, width=70, height=20, bg="#1e1e1e", fg="#eaeaea", insertbackground="white", font=("Consolas", 11))
-    area.insert(tk.END, contenido_actual)
+    win = tk.Toplevel(ventana)
+    win.title(sel)
+    area = scrolledtext.ScrolledText(win, width=60, height=15, font=("Arial", 11))
+    area.insert(tk.END, contenido)
+    area.config(state="disabled")
     area.pack(padx=10, pady=10)
 
-    def guardar_modificacion():
-        nuevo = area.get("1.0", tk.END).strip()
-        if not nuevo:
-            messagebox.showerror("Error", "El contenido no puede estar vacío.")
-            return
-        ok, msg = modificar_archivo(nombre, nuevo, usuario_actual)
+def modificar_archivo_ui():
+    if not usuario_actual:
+        messagebox.showerror("Error", "Debe iniciar sesión")
+        return
+    sel = lista_archivos.get(tk.ACTIVE)
+    if not sel:
+        messagebox.showerror("Error", "Seleccione un archivo")
+        return
+    from fat_logic import cargar_fat
+    fat = cargar_fat(sel)
+    if not fat:
+        return
+    contenido = leer_contenido(fat)
+    win = tk.Toplevel(ventana)
+    win.title("Modificar archivo")
+    txt = scrolledtext.ScrolledText(win, width=60, height=15, font=("Arial", 11))
+    txt.insert(tk.END, contenido)
+    txt.pack(padx=10, pady=10)
+    def guardar():
+        nuevo = txt.get("1.0", tk.END).strip()
+        ok, msg = modificar_archivo(sel, nuevo, usuario_actual)
         messagebox.showinfo("Resultado", msg)
-        ventana_edit.destroy()
-        refrescar_listas()
+        win.destroy()
+    tk.Button(win, text="Guardar Cambios", command=guardar).pack(pady=5)
 
-    tk.Button(ventana_edit, text="Guardar cambios", bg="#4a90e2", fg="white", width=20, command=guardar_modificacion).pack(pady=10)
-
-def eliminar():
-    if not usuario_actual: return
-    sel = lista_archivos.curselection()
-    if not sel: return
-    nombre = lista_archivos.get(sel)
-    ok, msg = eliminar_logico(nombre, usuario_actual)
+def eliminar_archivo_ui():
+    if not usuario_actual:
+        messagebox.showerror("Error", "Debe iniciar sesión")
+        return
+    sel = lista_archivos.get(tk.ACTIVE)
+    if not sel:
+        messagebox.showerror("Error", "Seleccione un archivo")
+        return
+    ok, msg = eliminar_logico(sel, usuario_actual)
     messagebox.showinfo("Resultado", msg)
     refrescar_listas()
 
 def recuperar_archivo():
-    if not usuario_actual: return
-    sel = lista_papelera.curselection()
-    if not sel: return
-    nombre = lista_papelera.get(sel)
-    ok, msg = recuperar(nombre, usuario_actual)
+    if not usuario_actual:
+        messagebox.showerror("Error", "Debe iniciar sesión")
+        return
+    sel = lista_papelera.get(tk.ACTIVE)
+    if not sel:
+        messagebox.showerror("Error", "Seleccione un archivo")
+        return
+    ok, msg = recuperar(sel, usuario_actual)
     messagebox.showinfo("Resultado", msg)
     refrescar_listas()
 
-def vaciar_papelera_accion():
-    if not usuario_actual:
-        return
-    confirmar = messagebox.askyesno("Confirmar", "¿Deseas vaciar la papelera permanentemente?")
-    if confirmar:
-        vaciar_papelera()  
-        refrescar_listas()
-        messagebox.showinfo("Hecho", "Papelera vaciada correctamente")
+def vaciar_papelera_ui():
+    vaciar_papelera()
+    refrescar_listas()
+    messagebox.showinfo("Papelera", "La papelera ha sido vaciada")
 
-def asignar_permiso():
-    if not usuario_actual: return
-    sel = lista_archivos.curselection()
-    if not sel: return
-    nombre = lista_archivos.get(sel)
-    fat = cargar_fat(nombre)
-    if not fat or fat["owner"] != usuario_actual:
-        messagebox.showerror("Error", "Solo el propietario puede asignar permisos")
+def crear_usuario_ui():
+    nombre = simpledialog.askstring("Nuevo usuario", "Nombre:")
+    clave = simpledialog.askstring("Nuevo usuario", "Contraseña:")
+    if not nombre or not clave:
+        messagebox.showerror("Error", "Campos vacíos")
         return
-    usuario_destino = simpledialog.askstring("Permisos", "Usuario destino:")
-    if not usuario_destino or not usuario_destino.strip():
-        messagebox.showerror("Error", "Usuario inválido.")
-        return
-    r = messagebox.askyesno("Lectura", "¿Dar permiso de lectura?")
-    w = messagebox.askyesno("Escritura", "¿Dar permiso de escritura?")
-    ok, msg = assign_permission(nombre, usuario_actual, usuario_destino, read=r, write=w)
+    ok, msg = crear_usuario(nombre, clave)
     messagebox.showinfo("Resultado", msg)
 
-def crear_usuario():
-    if not usuario_actual: return
-    u = find_user(usuario_actual)
-    if not u or not u.get("is_admin"):
-        messagebox.showerror("Error", "Solo el administrador puede crear usuarios")
+def asignar_permiso_ui():
+    usuario = simpledialog.askstring("Permiso", "Usuario a modificar:")
+    if not usuario:
+        messagebox.showerror("Error", "Usuario inválido")
         return
-    nuevo = simpledialog.askstring("Nuevo usuario", "Nombre del nuevo usuario:")
-    clave = simpledialog.askstring("Contraseña", "Contraseña del nuevo usuario:")
-    if not nuevo or not clave or nuevo.strip() == "" or clave.strip() == "":
-        messagebox.showerror("Error", "Usuario o contraseña no válidos.")
+    respuesta = simpledialog.askstring("Rol", "Asignar admin? (s/n):")
+    if not respuesta or respuesta.lower() not in ("s", "n"):
+        messagebox.showerror("Error", "Respuesta inválida")
         return
-    ok, msg = create_user(nuevo, clave, usuario_actual)
+    es_admin = respuesta.lower() == "s"
+    ok, msg = asignar_permiso(usuario_actual, usuario, es_admin)
     messagebox.showinfo("Resultado", msg)
+    actualizar_visibilidad_botones()
 
 
-tk.Label(frame_login, text="Simulador FAT", font=("Arial", 20, "bold"), bg="#2b2b2b", fg="#ffffff").pack(pady=20)
-tk.Label(frame_login, text="Usuario:", bg="#2b2b2b", fg="#ffffff").pack()
-entrada_usuario = tk.Entry(frame_login, width=30)
-entrada_usuario.pack(pady=5)
-tk.Label(frame_login, text="Contraseña:", bg="#2b2b2b", fg="#ffffff").pack()
-entrada_pass = tk.Entry(frame_login, show="*", width=30)
-entrada_pass.pack(pady=5)
-tk.Button(frame_login, text="Iniciar sesión", bg="#4a90e2", fg="white", width=20, command=login).pack(pady=10)
-tk.Button(frame_login, text="Salir del sistema", bg="#a94442", fg="white", width=20, command=salir).pack()
 
+def salir():
+    ventana.destroy()
 
-label_usuario = tk.Label(frame_main, text="", bg="#2b2b2b", fg="#ffffff", font=("Arial", 12))
-label_usuario.pack(pady=10)
-tk.Button(frame_main, text="Cerrar sesión", bg="#777", fg="white", width=20, command=logout).pack(pady=5)
-tk.Button(frame_main, text="Salir del sistema", bg="#a94442", fg="white", width=20, command=salir).pack(pady=5)
+ventana = tk.Tk()
+ventana.title("Simulador FAT")
+ventana.geometry("900x500")
+ventana.configure(bg="#202020")
 
-notebook = ttk.Notebook(frame_main)
-notebook.pack(fill="both", expand=True, pady=10)
+frame_izq = tk.Frame(ventana, bg="#202020")
+frame_izq.pack(side=tk.LEFT, fill=tk.Y, padx=20, pady=20)
+frame_der = tk.Frame(ventana, bg="#202020")
+frame_der.pack(side=tk.RIGHT, fill=tk.BOTH, expand=True, padx=20, pady=20)
 
-tab_activos = tk.Frame(notebook, bg="#2b2b2b")
-tab_papelera = tk.Frame(notebook, bg="#2b2b2b")
-notebook.add(tab_activos, text="Archivos Activos")
-notebook.add(tab_papelera, text="Papelera")
-
-lista_archivos = tk.Listbox(tab_activos, width=60, height=15, bg="#1e1e1e", fg="#eaeaea", selectbackground="#4a90e2", borderwidth=0)
+tk.Label(frame_izq, text="Archivos", fg="white", bg="#202020", font=("Arial", 13)).pack()
+lista_archivos = tk.Listbox(frame_izq, width=40, height=15, bg="#303030", fg="white", font=("Arial", 10))
 lista_archivos.pack(pady=10)
-lista_papelera = tk.Listbox(tab_papelera, width=60, height=15, bg="#1e1e1e", fg="#eaeaea", selectbackground="#d9534f", borderwidth=0)
+tk.Label(frame_izq, text="Papelera", fg="white", bg="#202020", font=("Arial", 13)).pack()
+lista_papelera = tk.Listbox(frame_izq, width=40, height=10, bg="#303030", fg="white", font=("Arial", 10))
 lista_papelera.pack(pady=10)
 
-botones = [
-    ("Crear archivo", crear),
-    ("Abrir archivo", abrir),
-    ("Modificar archivo", modificar),
-    ("Eliminar archivo", eliminar),
-    ("Asignar permisos", asignar_permiso),
-    ("Crear usuario", crear_usuario)
-]
+boton_login = tk.Button(frame_der, text="Iniciar Sesión", command=login_usuario, width=25, height=2)
+boton_login.grid(row=0, column=0, pady=5)
+boton_crear = tk.Button(frame_der, text="Crear Archivo", command=crear_archivo_ui, width=25, height=2)
+boton_crear.grid(row=1, column=0, pady=5)
+boton_abrir = tk.Button(frame_der, text="Abrir Archivo", command=abrir_archivo, width=25, height=2)
+boton_abrir.grid(row=2, column=0, pady=5)
+boton_modificar = tk.Button(frame_der, text="Modificar Archivo", command=modificar_archivo_ui, width=25, height=2)
+boton_modificar.grid(row=3, column=0, pady=5)
+boton_eliminar = tk.Button(frame_der, text="Eliminar Archivo", command=eliminar_archivo_ui, width=25, height=2)
+boton_eliminar.grid(row=4, column=0, pady=5)
+boton_recuperar = tk.Button(frame_der, text="Recuperar Archivo", command=recuperar_archivo, width=25, height=2)
+boton_recuperar.grid(row=5, column=0, pady=5)
+boton_vaciar = tk.Button(frame_der, text="Vaciar Papelera", command=vaciar_papelera_ui, width=25, height=2)
+boton_vaciar.grid(row=6, column=0, pady=5)
+boton_crear_usuario = tk.Button(frame_der, text="Crear Usuario", command=crear_usuario_ui, width=25, height=2)
+boton_crear_usuario.grid(row=7, column=0, pady=5)
+boton_asignar_permiso = tk.Button(frame_der, text="Asignar Permisos", command=asignar_permiso_ui, width=25, height=2)
+boton_asignar_permiso.grid(row=8, column=0, pady=5)
+boton_salir = tk.Button(frame_der, text="Salir", command=salir, width=25, height=2, bg="#a83232", fg="white")
+boton_salir.grid(row=9, column=0, pady=10)
 
-for t, f in botones:
-    tk.Button(tab_activos, text=t, bg="#4a90e2", fg="white", width=25, command=f, relief="flat").pack(pady=3)
-
-tk.Button(tab_papelera, text="Recuperar archivo", bg="#5bc0de", fg="white", width=25, command=recuperar_archivo).pack(pady=3)
-tk.Button(tab_papelera, text="Vaciar papelera", bg="#a94442", fg="white", width=25, command=vaciar_papelera_accion).pack(pady=3)
-
-mostrar_login()
+refrescar_listas()
 ventana.mainloop()
