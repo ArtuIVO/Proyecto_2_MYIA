@@ -1,0 +1,11 @@
+[
+    {
+        "nombre": "Prueba22",
+        "ruta": "archivos\\Prueba22.txt",
+        "owner": "Sujeto de prueba",
+        "creado": "2025-10-22 11:25:05",
+        "modificado": "2025-10-22 11:25:26",
+        "tamano": 126,
+        "papelera": false
+    }
+]
